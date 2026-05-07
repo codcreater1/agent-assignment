@@ -1,0 +1,18 @@
+[project]
+name = "agent-assignment"
+version = "0.1.0"
+description = "Task Execution AI Agent - Junior AI Agentic Engineer take-home"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "openai>=1.40.0",
+    "python-dotenv>=1.0.0",
+    "rich>=13.7.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]

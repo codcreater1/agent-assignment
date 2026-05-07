@@ -1,0 +1,22 @@
+# Environment / secrets
+.env
+.env.local
+
+# uv / Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.python-version.local
+
+# Build artefacts
+build/
+dist/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
