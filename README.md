@@ -65,10 +65,15 @@ uv run python main.py "Find 3 coworking spaces in Warsaw under $20/day"
 
 ### Provider
 
-The agent talks to any OpenAI-compatible chat-completions endpoint. Defaults
-in `.env.example` point at **Groq** (free, fast, supports tool calling on
-`llama-3.3-70b-versatile`). To use OpenAI, OpenRouter, Together, etc., just
-swap `OPENAI_BASE_URL`, `OPENAI_API_KEY`, and `OPENAI_MODEL`.
+The agent talks to any OpenAI-compatible chat-completions endpoint.
+Defaults in `.env.example` point at **Groq** (free, fast) with
+`meta-llama/llama-4-scout-17b-16e-instruct` — chosen because it produces
+well-formed tool calls more reliably than older Llamas. `llama-3.3-70b`
+also works but occasionally emits malformed function-name strings; the
+agent loop catches that and retries with a corrective hint.
+
+To use OpenAI, OpenRouter, Together, etc., just swap `OPENAI_BASE_URL`,
+`OPENAI_API_KEY`, and `OPENAI_MODEL`.
 
 ### Environment variables
 

@@ -73,6 +73,21 @@ class Agent:
             try:
                 msg = self.llm.chat(messages, tools=ALL_TOOL_SCHEMAS)
             except LLMError as exc:
+                # Some providers (e.g. Groq with Llama 3.x) occasionally
+                # emit a malformed tool call and reject it server-side
+                # with HTTP 400 / `tool_use_failed`. Feed a hint back and
+                # try once more before giving up.
+                if "tool_use_failed" in str(exc):
+                    messages.append({
+                        "role": "user",
+                        "content": (
+                            "Your previous response contained a malformed "
+                            "tool call (the function name and arguments "
+                            "were merged). Try again, keeping the function "
+                            "name and JSON arguments as separate fields."
+                        ),
+                    })
+                    continue
                 return f"LLM error: {exc}"
 
             messages.append(self._assistant_dict(msg))
