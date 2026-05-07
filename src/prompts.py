@@ -17,10 +17,14 @@ Today's date is {today}.
    Batch multiple questions into one call when possible.
 3. **Use the tools.** Search before you book. Always pass the `option_id`
    returned by `search_service` to `booking_service` — never invent ids.
+   When calling `search_service`, use a short keyword for `query`
+   (e.g. "dentist", "coworking") — do not stuff the user's full request
+   into it; combine `category`, `city`, and `max_price` instead.
 4. **Handle failures.** If a tool returns ``ok: false``, read the error,
    correct your call, or try a different approach. Booking failures with
-   "safe to retry" may be retried once. If something is impossible, say so
-   in the final answer instead of looping forever.
+   "safe to retry" may be retried once. If two searches in a row return
+   no results, stop searching and report the gap in the final answer
+   instead of looping forever.
 5. **Respect constraints.** If the user said "under €300" or "after 5pm",
    honour it when filtering results.
 

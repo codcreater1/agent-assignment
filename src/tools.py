@@ -34,6 +34,12 @@ _SEARCH_DB: list[dict[str, Any]] = [
     {"id": "dent-003", "name": "Dr. Kowalski Clinic", "category": "dentist",
      "city": "warsaw", "price": 60, "rating": 4.3,
      "open_hours": "08:00-18:00"},
+    {"id": "dent-004", "name": "Antalya Dental Studio", "category": "dentist",
+     "city": "antalya", "price": 70, "rating": 4.5,
+     "open_hours": "10:00-20:00"},
+    {"id": "dent-005", "name": "Falez Dis Klinigi", "category": "dentist",
+     "city": "antalya", "price": 55, "rating": 4.4,
+     "open_hours": "09:00-19:00"},
 
     # Coworking
     {"id": "cowork-001", "name": "Brain Embassy",
@@ -101,20 +107,26 @@ def calendar_check(start_date: str, end_date: str) -> dict[str, Any]:
     return {"ok": True, "free_slots": free_slots}
 
 
-def search_service(query: str,
+def search_service(query: str | None = None,
                    category: str | None = None,
                    city: str | None = None,
                    max_price: float | None = None) -> dict[str, Any]:
-    """Keyword search over a small mock catalogue."""
-    if not query or not query.strip():
-        return {"ok": False, "error": "query must be a non-empty string."}
+    """Keyword search over a small mock catalogue.
 
-    q = query.lower()
+    All filters are optional, but at least one of ``query``, ``category``,
+    or ``city`` must be supplied so we don't return the entire catalogue.
+    """
+    if not any([query and query.strip(), category, city]):
+        return {"ok": False,
+                "error": "Provide at least one of query, category, or city."}
+
+    q = (query or "").strip().lower()
     results: list[dict[str, Any]] = []
     for item in _SEARCH_DB:
-        haystack = " ".join(str(v).lower() for v in item.values())
-        if q not in haystack and not any(w in haystack for w in q.split()):
-            continue
+        if q:
+            haystack = " ".join(str(v).lower() for v in item.values())
+            if q not in haystack and not any(w in haystack for w in q.split()):
+                continue
         if category and item.get("category") != category.lower():
             continue
         if city and item.get("city") != city.lower():
@@ -209,19 +221,24 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         "type": "function",
         "function": {
             "name": "search_service",
-            "description": "Search a catalogue of services (dentists, "
-                           "coworking spaces, hotels, transport).",
+            "description": (
+                "Search a catalogue of services (dentists, coworking spaces, "
+                "hotels, transport). Use a short keyword for `query` (e.g. "
+                "'dentist', 'coworking') — do NOT pass the user's full "
+                "request. At least one of `query`, `category`, or `city` "
+                "is required."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "query": {"type": "string"},
+                    "query": {"type": "string",
+                              "description": "Short keyword, e.g. 'dentist'."},
                     "category": {"type": "string",
                                  "enum": ["dentist", "coworking",
                                           "hotel", "transport"]},
                     "city": {"type": "string"},
                     "max_price": {"type": "number"},
                 },
-                "required": ["query"],
             },
         },
     },
