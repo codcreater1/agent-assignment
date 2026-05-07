@@ -79,29 +79,53 @@ swap `OPENAI_BASE_URL`, `OPENAI_API_KEY`, and `OPENAI_MODEL`.
 | `OPENAI_MODEL` | `gpt-4o-mini` | Any model the provider serves with tool calling |
 | `AGENT_MAX_STEPS` | `10` | Hard cap on tool-calling iterations |
 
-## Example session
+## Demo
 
-```
-$ uv run python main.py "Find 3 coworking spaces in Warsaw under $20/day"
-→ search_service({"query":"coworking","category":"coworking","city":"warsaw","max_price":20}) {"ok": true, "results": [...]}
+Each screenshot is a real run against the Groq backend
+(`llama-3.3-70b-versatile`).
 
-Result
-Found 3 coworking spaces in Warsaw under $20/day:
-- Brain Embassy — $18/day, rating 4.7
-- Business Link — $15/day, rating 4.2
-- The Heart — $19/day, rating 4.6
-```
+### 1. Filtered search — single tool call
 
-If a required detail is missing, the agent uses `ask_user`:
+> *"Find 3 coworking spaces in Warsaw under $20/day"*
 
-```
-$ uv run python main.py "Book me a dentist next week after 5pm"
-? What city are you in?  warsaw
-→ search_service(...)
-→ calendar_check(...)
-→ booking_service(...)
-...
-```
+The agent calls `search_service` once with the right `category`, `city`, and
+`max_price` filters and produces the final summary. No clarifications needed.
+
+![Coworking search](docs/screenshots/01-coworking-warsaw.png)
+
+### 2. Clarifying questions + self-correction after a tool error
+
+> *"Book me a dentist appointment next week after 5pm"*
+
+This run shows everything the assignment is grading on:
+
+- **Three clarifying questions** via `ask_user` (city, date, time choice
+  between the 17:00 and 18:00 free slots).
+- **A real recovery from a model mistake.** The agent's first
+  `booking_service` call passed a hallucinated `option_id: "12345"`. The
+  tool rejected it (`Unknown option_id '12345'. Call search_service first
+  to get a valid id.`). The agent read the error, called `search_service`
+  again to get the real id (`dent-003`), and then booked successfully —
+  confirmation `BK-63254422`.
+
+That's exactly the failure-handling path the system prompt is designed to
+push the model into.
+
+![Dentist with clarifications and recovery](docs/screenshots/02-dentist-clarify-recover.png)
+
+### 3. Multi-tool: schedule + reminder, and a budgeted trip plan
+
+> *"Schedule a meeting with John next Tuesday afternoon and remind me 30
+> minutes before"*
+> *"Plan a 2-day trip to Prague under 300 euro"*
+
+`calendar_check` → `ask_user` → `reminder_create` for the meeting; then a
+chain of `search_service` (hotel, transport) → `ask_user` (dates) →
+`booking_service` × 2 → `calendar_check` for the trip — all under the
+€300 cap.
+
+![Meeting reminder and Prague trip](docs/screenshots/03-meeting-and-trip.png)
+![Trip booking and Brain Embassy](docs/screenshots/04-trip-and-booking.png)
 
 ## Design notes
 
