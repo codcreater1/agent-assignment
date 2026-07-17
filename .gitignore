@@ -15,6 +15,10 @@ build/
 dist/
 *.egg-info/
 
+# Persisted agent state / test cache
+.agent_data.json
+.pytest_cache/
+
 # IDE
 .vscode/
 .idea/

@@ -41,10 +41,28 @@ The agent follows a standard tool-calling loop:
 | `search_service(query, category?, city?, max_price?)` | Search a small mock catalogue (dentists, coworking, hotels, transport) |
 | `booking_service(option_id, when?, notes?)` | Book a previously-found option (10% simulated transient failure) |
 | `reminder_create(title, when, notes?)` | Create a reminder |
+| `list_bookings()` | List everything booked so far |
+| `list_reminders()` | List every reminder created so far |
 | `ask_user(question)` | Pseudo-tool — pauses and asks the user for clarification |
 
 All tools return `{"ok": True, ...}` or `{"ok": False, "error": "..."}` so the
 agent can read errors and adapt instead of crashing.
+
+Bookings and reminders are persisted to a local JSON file
+(`.agent_data.json` by default, override with `AGENT_DATA_FILE`) so a
+follow-up command like *"list my bookings"* works even in a new process.
+`search_service` also tolerates small typos (e.g. "dentst") via fuzzy
+word matching, not just exact substrings.
+
+## Testing
+
+    uv sync --all-groups
+    uv run pytest -v
+
+23 offline tests cover the tool functions (`tests/test_tools.py`) and the
+agent loop (`tests/test_agent.py`) using a scripted fake LLM client — no
+network or API key required. CI (`.github/workflows/ci.yml`) runs the
+suite on every push and PR.
 
 ## Setup
 
@@ -147,9 +165,12 @@ chain of `search_service` (hotel, transport) → `ask_user` (dates) →
 
 ## Trade-offs / things I'd do next
 
-- Add an integration test with a recorded LLM response (vcrpy / pytest).
+- ~~Add tests~~ — done: 23 offline unit/loop tests + CI, see [Testing](#testing).
+- ~~Persist bookings/reminders to disk~~ — done, see [Tools](#tools).
+- ~~Handle typos in search~~ — done via fuzzy word matching.
+- Add a real integration test with a recorded LLM response (vcrpy) to also
+  cover the actual provider wire format, not just the loop logic.
 - Stream tokens for nicer UX on long final answers.
-- Persist `_REMINDERS` / `_BOOKINGS` to disk so a follow-up command (`list my
-  bookings`) can see them across runs.
 - Replace the keyword-match search with a tiny vector store once the
   catalogue grows past ~50 items.
+- Swap the JSON-file store for SQLite if concurrent runs become a thing.

@@ -7,16 +7,24 @@ read the error and decide what to do next instead of crashing.
 
 from __future__ import annotations
 
+import difflib
 import random
 import uuid
 from datetime import datetime, timedelta
 from typing import Any
 
+from . import storage
 
-# In-memory "database" so reminders and bookings persist across calls
-# inside one agent run.
-_REMINDERS: list[dict[str, Any]] = []
-_BOOKINGS: list[dict[str, Any]] = []
+# Persisted across runs (not just across calls inside one run) so a
+# follow-up command like "list my bookings" works after the process
+# restarts. Loaded once at import time; every write is flushed to disk.
+_STATE = storage.load()
+_REMINDERS: list[dict[str, Any]] = _STATE["reminders"]
+_BOOKINGS: list[dict[str, Any]] = _STATE["bookings"]
+
+
+def _persist() -> None:
+    storage.save({"reminders": _REMINDERS, "bookings": _BOOKINGS})
 
 
 # ---------------------------------------------------------------------------
@@ -125,7 +133,15 @@ def search_service(query: str | None = None,
     for item in _SEARCH_DB:
         if q:
             haystack = " ".join(str(v).lower() for v in item.values())
-            if q not in haystack and not any(w in haystack for w in q.split()):
+            words = q.split()
+            substring_hit = q in haystack or any(w in haystack for w in words)
+            # Tolerate small typos ("dentst", "coworkng") via fuzzy
+            # word-level matching instead of requiring an exact substring.
+            fuzzy_hit = any(
+                difflib.get_close_matches(w, haystack.split(), n=1, cutoff=0.8)
+                for w in words
+            )
+            if not substring_hit and not fuzzy_hit:
                 continue
         if category and item.get("category") != category.lower():
             continue
@@ -166,7 +182,13 @@ def booking_service(option_id: str,
     record = {"confirmation": confirmation, "item": item,
               "when": when, "notes": notes}
     _BOOKINGS.append(record)
+    _persist()
     return {"ok": True, **record}
+
+
+def list_bookings() -> dict[str, Any]:
+    """List all bookings made so far (persisted across runs)."""
+    return {"ok": True, "bookings": _BOOKINGS}
 
 
 def reminder_create(title: str,
@@ -184,7 +206,13 @@ def reminder_create(title: str,
     rid = f"REM-{uuid.uuid4().hex[:6].upper()}"
     record = {"id": rid, "title": title, "when": when, "notes": notes}
     _REMINDERS.append(record)
+    _persist()
     return {"ok": True, **record}
+
+
+def list_reminders() -> dict[str, Any]:
+    """List all reminders created so far (persisted across runs)."""
+    return {"ok": True, "reminders": _REMINDERS}
 
 
 # ---------------------------------------------------------------------------
@@ -196,6 +224,8 @@ TOOL_FUNCTIONS = {
     "search_service": search_service,
     "booking_service": booking_service,
     "reminder_create": reminder_create,
+    "list_bookings": list_bookings,
+    "list_reminders": list_reminders,
 }
 
 
@@ -274,6 +304,22 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 },
                 "required": ["title", "when"],
             },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_bookings",
+            "description": "List all bookings made so far (persisted across runs).",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_reminders",
+            "description": "List all reminders created so far (persisted across runs).",
+            "parameters": {"type": "object", "properties": {}},
         },
     },
 ]
